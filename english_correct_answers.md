@@ -1,6 +1,3 @@
-# Test "Leben in Deutschland" (English version) - Correct Answers
-> Please note that this test and its answers were generated using AI. We strongly recommend that you independently verify the accuracy of the content before using it.
-
 ### 1. In Germany, people are allowed to openly say something against the government because …
 - freedom of opinion applies here.
 
