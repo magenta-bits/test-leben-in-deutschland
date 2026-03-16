@@ -2,6 +2,28 @@ import re
 import subprocess
 import tempfile
 import os
+import wave
+import tarfile
+import urllib.request
+from pathlib import Path
+
+from piper import PiperVoice
+
+VOICE_DIR = Path.home() / ".local/share/piper-voices"
+ONNX_PATH = VOICE_DIR / "de-thorsten-low.onnx"
+MODEL_URL = "https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-de-thorsten-low.tar.gz"
+
+
+def ensure_voice():
+    if not ONNX_PATH.exists():
+        VOICE_DIR.mkdir(parents=True, exist_ok=True)
+        tar_path = VOICE_DIR / "de-thorsten-low.tar.gz"
+        print("Downloading German voice model...")
+        urllib.request.urlretrieve(MODEL_URL, tar_path)
+        with tarfile.open(tar_path) as t:
+            t.extractall(VOICE_DIR)
+        tar_path.unlink()
+        print("Voice model ready.")
 
 
 def clean_markdown(text):
@@ -12,29 +34,21 @@ def clean_markdown(text):
     return text.strip()
 
 
+ensure_voice()
+
 with open('german_summary_for_reading.md', 'r', encoding='utf-8') as f:
-    raw = f.read()
+    clean = clean_markdown(f.read())
 
-clean = clean_markdown(raw)
+print("Loading voice model...")
+voice = PiperVoice.load(str(ONNX_PATH))
 
-with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_wav:
-    wav_path = tmp_wav.name
+with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+    wav_path = tmp.name
 
-try:
-    # Generate WAV via espeak-ng (German voice)
-    subprocess.run(
-        ['espeak-ng', '-v', 'de', '-s', '140', '-w', wav_path, '--stdin'],
-        input=clean.encode('utf-8'),
-        check=True,
-    )
+print("Synthesizing audio...")
+with wave.open(wav_path, 'wb') as wav_file:
+    voice.synthesize_wav(clean, wav_file)
 
-    # Convert WAV to MP3 via lame
-    subprocess.run(
-        ['lame', '-q', '3', wav_path, 'german_summary.mp3'],
-        check=True,
-        capture_output=True,
-    )
-
-    print("Saved german_summary.mp3")
-finally:
-    os.unlink(wav_path)
+subprocess.run(['lame', '-q', '3', wav_path, 'german_summary.mp3'], check=True, capture_output=True)
+os.unlink(wav_path)
+print("Saved german_summary.mp3")
